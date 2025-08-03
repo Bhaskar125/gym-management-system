@@ -7,15 +7,17 @@ import AdminDashboard from "./components/admin-dashboard"
 import MemberPortal from "./components/member-portal"
 import PublicSearch from "./components/public-search"
 import LoginForm from "./components/login-form"
+import FirebaseSetup from "./components/firebase-setup"
+import FirebaseDebug from "./components/firebase-debug"
 
 export default function GymManagementSystem() {
   const [currentUser, setCurrentUser] = useState<{
     id: string
     name: string
-    role: "admin" | "member" | "user"
+    role: "admin" | "member" | "user" | "setup" | "debug"
   } | null>(null)
 
-  const handleLogin = (user: { id: string; name: string; role: "admin" | "member" | "user" }) => {
+  const handleLogin = (user: { id: string; name: string; role: "admin" | "member" | "user" | "setup" | "debug" }) => {
     setCurrentUser(user)
   }
 
@@ -57,6 +59,8 @@ export default function GymManagementSystem() {
           {currentUser.role === "admin" && <AdminDashboard />}
           {currentUser.role === "member" && <MemberPortal memberId={currentUser.id} />}
           {currentUser.role === "user" && <PublicSearch />}
+          {currentUser.role === "setup" && <FirebaseSetup />}
+          {currentUser.role === "debug" && <FirebaseDebug />}
         </div>
       </main>
     </div>

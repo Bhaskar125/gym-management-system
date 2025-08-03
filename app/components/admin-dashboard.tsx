@@ -21,118 +21,78 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Users, CreditCard, Bell, FileText, Plus, Download, Filter, Edit, Trash2 } from "lucide-react"
+import { useMembers, useBills, usePackages, useDashboardStats } from "@/hooks/use-firebase-data"
 
-// Mock data
-const mockMembers = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    phone: "+1234567890",
-    packageId: "basic",
-    joinDate: "2024-01-15",
-    active: true,
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    phone: "+1234567891",
-    packageId: "premium",
-    joinDate: "2024-02-01",
-    active: true,
-  },
-  {
-    id: "3",
-    name: "Mike Johnson",
-    email: "mike@example.com",
-    phone: "+1234567892",
-    packageId: "basic",
-    joinDate: "2024-01-20",
-    active: false,
-  },
-]
-
-const mockBills = [
-  {
-    id: "1",
-    memberId: "1",
-    amount: 50,
-    month: "2024-01",
-    paymentDate: "2024-01-15",
-    status: "Paid" as const,
-    receiptUrl: "/receipt1.pdf",
-  },
-  { id: "2", memberId: "2", amount: 100, month: "2024-01", paymentDate: "", status: "Pending" as const },
-  {
-    id: "3",
-    memberId: "1",
-    amount: 50,
-    month: "2024-02",
-    paymentDate: "2024-02-15",
-    status: "Paid" as const,
-    receiptUrl: "/receipt3.pdf",
-  },
-]
-
-const mockPackages = [
-  { id: "basic", name: "Basic Plan", price: 50, duration: "1 month" },
-  { id: "premium", name: "Premium Plan", price: 100, duration: "1 month" },
-  { id: "annual", name: "Annual Plan", price: 500, duration: "12 months" },
-]
+// All data is now fetched from Firebase using custom hooks
 
 export default function AdminDashboard() {
-  const [members, setMembers] = useState(mockMembers)
-  const [bills, setBills] = useState(mockBills)
+  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers()
+  const { bills, loading: billsLoading, addBill, updateBill, deleteBill } = useBills()
+  const { packages, loading: packagesLoading, addPackage, updatePackage, deletePackage } = usePackages()
+  const { stats, loading: statsLoading, refreshStats } = useDashboardStats()
+  
   const [selectedMember, setSelectedMember] = useState<any>(null)
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
   const [isCreateBillOpen, setIsCreateBillOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
-  const stats = [
-    { title: "Total Members", value: members.length, icon: Users, color: "text-blue-600" },
-    { title: "Active Members", value: members.filter((m) => m.active).length, icon: Users, color: "text-green-600" },
-    {
-      title: "Pending Bills",
-      value: bills.filter((b) => b.status === "Pending").length,
-      icon: CreditCard,
-      color: "text-orange-600",
-    },
-    {
-      title: "Monthly Revenue",
-      value: `$${bills.filter((b) => b.status === "Paid").reduce((sum, b) => sum + b.amount, 0)}`,
-      icon: FileText,
-      color: "text-purple-600",
-    },
+  const dashboardStats = [
+    { title: "Total Members", value: stats.totalMembers, icon: Users, color: "text-blue-600" },
+    { title: "Active Members", value: stats.activeMembers, icon: Users, color: "text-green-600" },
+    { title: "Pending Bills", value: stats.pendingBills, icon: CreditCard, color: "text-orange-600" },
+    { title: "Monthly Revenue", value: `$${stats.totalRevenue}`, icon: FileText, color: "text-purple-600" },
   ]
 
-  const handleAddMember = (memberData: any) => {
-    const newMember = {
-      id: Date.now().toString(),
-      ...memberData,
-      joinDate: new Date().toISOString().split("T")[0],
-      active: true,
+  const handleAddMember = async (memberData: any) => {
+    try {
+      const newMemberData = {
+        ...memberData,
+        joinDate: new Date().toISOString().split("T")[0],
+        active: true,
+      }
+      await addMember(newMemberData)
+      setIsAddMemberOpen(false)
+      await refreshStats() // Refresh dashboard stats
+    } catch (error) {
+      console.error('Failed to add member:', error)
+      // You could show a toast notification here
     }
-    setMembers([...members, newMember])
-    setIsAddMemberOpen(false)
   }
 
-  const handleCreateBill = (billData: any) => {
-    const newBill = {
-      id: Date.now().toString(),
-      ...billData,
-      paymentDate: "",
-      status: "Pending" as const,
+  const handleCreateBill = async (billData: any) => {
+    try {
+      const newBillData = {
+        ...billData,
+        paymentDate: "",
+        status: "Pending" as const,
+      }
+      await addBill(newBillData)
+      setIsCreateBillOpen(false)
+      await refreshStats() // Refresh dashboard stats
+    } catch (error) {
+      console.error('Failed to create bill:', error)
+      // You could show a toast notification here
     }
-    setBills([...bills, newBill])
-    setIsCreateBillOpen(false)
   }
 
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {statsLoading ? (
+          // Loading skeleton
+          Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index}>
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          dashboardStats.map((stat, index) => (
           <Card key={index}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -144,7 +104,8 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Main Dashboard */}
@@ -173,33 +134,36 @@ export default function AdminDashboard() {
                   <DialogTitle>Add New Member</DialogTitle>
                   <DialogDescription>Enter member details below</DialogDescription>
                 </DialogHeader>
-                <MemberForm onSubmit={handleAddMember} packages={mockPackages} />
+                                 <MemberForm onSubmit={handleAddMember} packages={packages} />
               </DialogContent>
             </Dialog>
           </div>
 
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Package</TableHead>
-                    <TableHead>Join Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {members.map((member) => (
+                     <Card>
+             <CardContent className="p-0">
+               {membersLoading ? (
+                 <div className="p-6 text-center">Loading members...</div>
+               ) : (
+                 <Table>
+                   <TableHeader>
+                     <TableRow>
+                       <TableHead>Name</TableHead>
+                       <TableHead>Email</TableHead>
+                       <TableHead>Phone</TableHead>
+                       <TableHead>Package</TableHead>
+                       <TableHead>Join Date</TableHead>
+                       <TableHead>Status</TableHead>
+                       <TableHead>Actions</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {members.map((member) => (
                     <TableRow key={member.id}>
                       <TableCell className="font-medium">{member.name}</TableCell>
                       <TableCell>{member.email}</TableCell>
                       <TableCell>{member.phone}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{mockPackages.find((p) => p.id === member.packageId)?.name}</Badge>
+                                                 <Badge variant="outline">{packages.find((p) => p.id === member.packageId)?.name}</Badge>
                       </TableCell>
                       <TableCell>{member.joinDate}</TableCell>
                       <TableCell>
@@ -218,9 +182,10 @@ export default function AdminDashboard() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                                       ))}
+                   </TableBody>
+                 </Table>
+               )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -302,8 +267,11 @@ export default function AdminDashboard() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {mockPackages.map((pkg) => (
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             {packagesLoading ? (
+               <div className="col-span-3 text-center p-6">Loading packages...</div>
+             ) : (
+               packages.map((pkg) => (
               <Card key={pkg.id}>
                 <CardHeader>
                   <CardTitle>{pkg.name}</CardTitle>
@@ -320,9 +288,10 @@ export default function AdminDashboard() {
                     </Button>
                   </div>
                 </CardContent>
-              </Card>
-            ))}
-          </div>
+                               </Card>
+               ))
+             )}
+           </div>
         </TabsContent>
 
         {/* Notifications Tab */}
@@ -441,7 +410,7 @@ export default function AdminDashboard() {
 }
 
 // Member Form Component
-function MemberForm({ onSubmit, packages }: { onSubmit: (data: any) => void; packages: any[] }) {
+ function MemberForm({ onSubmit, packages }: { onSubmit: (data: any) => Promise<void>; packages: any[] }) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -449,11 +418,11 @@ function MemberForm({ onSubmit, packages }: { onSubmit: (data: any) => void; pac
     packageId: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(formData)
-    setFormData({ name: "", email: "", phone: "", packageId: "" })
-  }
+     const handleSubmit = async (e: React.FormEvent) => {
+     e.preventDefault()
+     await onSubmit(formData)
+     setFormData({ name: "", email: "", phone: "", packageId: "" })
+   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -508,18 +477,18 @@ function MemberForm({ onSubmit, packages }: { onSubmit: (data: any) => void; pac
 }
 
 // Bill Form Component
-function BillForm({ onSubmit, members }: { onSubmit: (data: any) => void; members: any[] }) {
+ function BillForm({ onSubmit, members }: { onSubmit: (data: any) => Promise<void>; members: any[] }) {
   const [formData, setFormData] = useState({
     memberId: "",
     amount: "",
     month: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit({ ...formData, amount: Number.parseFloat(formData.amount) })
-    setFormData({ memberId: "", amount: "", month: "" })
-  }
+     const handleSubmit = async (e: React.FormEvent) => {
+     e.preventDefault()
+     await onSubmit({ ...formData, amount: Number.parseFloat(formData.amount) })
+     setFormData({ memberId: "", amount: "", month: "" })
+   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

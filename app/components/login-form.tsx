@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Shield, Search } from "lucide-react"
 
 interface LoginFormProps {
-  onLogin: (user: { id: string; name: string; role: "admin" | "member" | "user" }) => void
+  onLogin: (user: { id: string; name: string; role: "admin" | "member" | "user" | "setup" | "debug" }) => void
 }
 
 export default function LoginForm({ onLogin }: LoginFormProps) {
@@ -26,7 +26,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
     // Mock authentication - in real app, you'd call an API
     setTimeout(() => {
-      let user: { id: string; name: string; role: "admin" | "member" | "user" }
+      let user: { id: string; name: string; role: "admin" | "member" | "user" | "setup" | "debug" }
 
       if (activeTab === "admin" && email === "admin@demo.com" && password === "admin") {
         user = { id: "admin-1", name: "Admin User", role: "admin" }
@@ -165,14 +165,32 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             <CardTitle className="text-sm">Demo Credentials</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <Badge variant="outline">Member</Badge>
-              <span>member@demo.com / member</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <Badge variant="destructive">Admin</Badge>
-              <span>admin@demo.com / admin</span>
-            </div>
+                      <div className="flex items-center justify-between text-xs">
+            <Badge variant="outline">Member</Badge>
+            <span>member@demo.com / member</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <Badge variant="destructive">Admin</Badge>
+            <span>admin@demo.com / admin</span>
+          </div>
+          <div className="pt-2 border-t space-y-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full text-xs"
+              onClick={() => onLogin({ id: "debug-1", name: "Debug User", role: "debug" })}
+            >
+              🔍 Firebase Diagnostics
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full text-xs"
+              onClick={() => onLogin({ id: "setup-1", name: "Setup User", role: "setup" })}
+            >
+              🔧 Database Setup (After Debug)
+            </Button>
+          </div>
           </CardContent>
         </Card>
       </div>
