@@ -33,6 +33,9 @@ export default function AdminDashboard() {
   
   const [selectedMember, setSelectedMember] = useState<any>(null)
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
+  const [isEditMemberOpen, setIsEditMemberOpen] = useState(false)
+  const [isDeleteMemberOpen, setIsDeleteMemberOpen] = useState(false)
+  const [memberToDelete, setMemberToDelete] = useState<any>(null)
   const [isCreateBillOpen, setIsCreateBillOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
@@ -71,6 +74,44 @@ export default function AdminDashboard() {
       await refreshStats() // Refresh dashboard stats
     } catch (error) {
       console.error('Failed to create bill:', error)
+      // You could show a toast notification here
+    }
+  }
+
+  const handleEditMember = (member: any) => {
+    setSelectedMember(member)
+    setIsEditMemberOpen(true)
+  }
+
+  const handleUpdateMember = async (memberData: any) => {
+    try {
+      if (selectedMember) {
+        await updateMember(selectedMember.id, memberData)
+        setIsEditMemberOpen(false)
+        setSelectedMember(null)
+        await refreshStats() // Refresh dashboard stats
+      }
+    } catch (error) {
+      console.error('Failed to update member:', error)
+      // You could show a toast notification here
+    }
+  }
+
+  const handleDeleteMember = (member: any) => {
+    setMemberToDelete(member)
+    setIsDeleteMemberOpen(true)
+  }
+
+  const confirmDeleteMember = async () => {
+    try {
+      if (memberToDelete) {
+        await deleteMember(memberToDelete.id)
+        setIsDeleteMemberOpen(false)
+        setMemberToDelete(null)
+        await refreshStats() // Refresh dashboard stats
+      }
+    } catch (error) {
+      console.error('Failed to delete member:', error)
       // You could show a toast notification here
     }
   }
@@ -129,12 +170,59 @@ export default function AdminDashboard() {
                   Add Member
                 </Button>
               </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Member</DialogTitle>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader className="space-y-3">
+                  <DialogTitle className="text-xl">Add New Member</DialogTitle>
                   <DialogDescription>Enter member details below</DialogDescription>
                 </DialogHeader>
-                                 <MemberForm onSubmit={handleAddMember} packages={packages} />
+                <div className="py-4">
+                  <MemberForm onSubmit={handleAddMember} packages={packages} />
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit Member Dialog */}
+            <Dialog open={isEditMemberOpen} onOpenChange={setIsEditMemberOpen}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader className="space-y-3">
+                  <DialogTitle className="text-xl">Edit Member</DialogTitle>
+                  <DialogDescription>Update member details below</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {selectedMember && (
+                    <EditMemberForm 
+                      onSubmit={handleUpdateMember} 
+                      packages={packages} 
+                      member={selectedMember}
+                    />
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Delete Member Confirmation Dialog */}
+            <Dialog open={isDeleteMemberOpen} onOpenChange={setIsDeleteMemberOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete Member</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to delete {memberToDelete?.name}? This action cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end space-x-2 mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsDeleteMemberOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={confirmDeleteMember}
+                  >
+                    Delete Member
+                  </Button>
+                </div>
               </DialogContent>
             </Dialog>
           </div>
@@ -173,10 +261,18 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditMember(member)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteMember(member)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -425,53 +521,181 @@ export default function AdminDashboard() {
    }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          required
-        />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Name and Email Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-sm font-medium">Name</Label>
+          <Input
+            id="name"
+            placeholder="Enter full name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter email address"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+        </div>
       </div>
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          required
-        />
-      </div>
-      <div>
-        <Label htmlFor="phone">Phone</Label>
+      
+      {/* Phone */}
+      <div className="space-y-2">
+        <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
         <Input
           id="phone"
+          placeholder="Enter phone number"
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           required
         />
       </div>
-      <div>
-        <Label htmlFor="package">Package</Label>
+      
+      {/* Package */}
+      <div className="space-y-2">
+        <Label htmlFor="package" className="text-sm font-medium">Membership Package</Label>
         <Select value={formData.packageId} onValueChange={(value) => setFormData({ ...formData, packageId: value })}>
           <SelectTrigger>
-            <SelectValue placeholder="Select a package" />
+            <SelectValue placeholder="Select a membership package" />
           </SelectTrigger>
           <SelectContent>
             {packages.map((pkg) => (
               <SelectItem key={pkg.id} value={pkg.id}>
-                {pkg.name} - ${pkg.price}
+                <div className="flex justify-between items-center w-full">
+                  <span>{pkg.name}</span>
+                  <span className="text-green-600 font-medium">${pkg.price}</span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
-      <Button type="submit" className="w-full">
-        Add Member
-      </Button>
+      
+      {/* Submit Button */}
+      <div className="pt-4">
+        <Button type="submit" className="w-full h-11 text-base">
+          Add Member
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+// Edit Member Form Component
+function EditMemberForm({ onSubmit, packages, member }: { onSubmit: (data: any) => Promise<void>; packages: any[]; member: any }) {
+  const [formData, setFormData] = useState({
+    name: member.name || "",
+    email: member.email || "",
+    phone: member.phone || "",
+    packageId: member.packageId || "",
+    active: member.active !== undefined ? member.active : true,
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await onSubmit(formData)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Name and Email Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-name" className="text-sm font-medium">Name</Label>
+          <Input
+            id="edit-name"
+            placeholder="Enter full name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-email" className="text-sm font-medium">Email</Label>
+          <Input
+            id="edit-email"
+            type="email"
+            placeholder="Enter email address"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+        </div>
+      </div>
+      
+      {/* Phone */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-phone" className="text-sm font-medium">Phone Number</Label>
+        <Input
+          id="edit-phone"
+          placeholder="Enter phone number"
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          required
+        />
+      </div>
+      
+      {/* Package and Status Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-package" className="text-sm font-medium">Membership Package</Label>
+          <Select value={formData.packageId} onValueChange={(value) => setFormData({ ...formData, packageId: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a package" />
+            </SelectTrigger>
+            <SelectContent>
+              {packages.map((pkg) => (
+                <SelectItem key={pkg.id} value={pkg.id}>
+                  <div className="flex justify-between items-center w-full">
+                    <span>{pkg.name}</span>
+                    <span className="text-green-600 font-medium">${pkg.price}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-status" className="text-sm font-medium">Member Status</Label>
+          <Select 
+            value={formData.active ? "active" : "inactive"} 
+            onValueChange={(value) => setFormData({ ...formData, active: value === "active" })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  Active
+                </div>
+              </SelectItem>
+              <SelectItem value="inactive">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                  Inactive
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      
+      {/* Submit Button */}
+      <div className="pt-4">
+        <Button type="submit" className="w-full h-11 text-base">
+          Update Member
+        </Button>
+      </div>
     </form>
   )
 }
