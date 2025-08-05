@@ -6,6 +6,8 @@ export interface Member {
     packageId: string
     joinDate: string
     active: boolean
+    dietPlanId?: string
+    dietNotes?: string
   }
   
   export interface Bill {
@@ -30,5 +32,37 @@ export interface Member {
     name: string
     price: number
     duration: string
+  }
+  
+  export interface DietPlan {
+    id: string
+    name: string
+    type: "Weight Loss" | "Muscle Gain" | "Maintenance" | "Athletic Performance" | "Custom"
+    description: string
+    calorieTarget: number
+    proteinTarget: number
+    carbTarget: number
+    fatTarget: number
+    dietaryRestrictions: string[]
+    mealPlan: MealPlan[]
+    createdDate: string
+    active: boolean
+  }
+  
+  export interface MealPlan {
+    id: string
+    mealType: "Breakfast" | "Lunch" | "Dinner" | "Snack"
+    foods: Food[]
+    totalCalories: number
+    notes?: string
+  }
+  
+  export interface Food {
+    name: string
+    quantity: string
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
   }
   

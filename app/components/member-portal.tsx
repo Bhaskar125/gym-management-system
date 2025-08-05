@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { User, CreditCard, Calendar, Package, Download } from "lucide-react"
-import type { Member, Bill, Package as PackageType } from "@/app/types"
+import { User, CreditCard, Calendar, Package, Download, Apple } from "lucide-react"
+import type { Member, Bill, Package as PackageType, DietPlan } from "@/app/types"
 
 interface MemberPortalProps {
   memberId: string
@@ -23,6 +23,8 @@ const mockMember: Member = {
   packageId: "premium",
   joinDate: "2024-01-15",
   active: true,
+  dietPlanId: "diet-1",
+  dietNotes: "Looking to build muscle mass, prefer protein-heavy meals",
 }
 
 const mockBills: Bill[] = [
@@ -59,6 +61,44 @@ const mockPackages: PackageType[] = [
   { id: "premium", name: "Premium Plan", price: 100, duration: "1 month" },
   { id: "annual", name: "Annual Plan", price: 500, duration: "12 months" },
 ]
+
+const mockDietPlan: DietPlan = {
+  id: "diet-1",
+  name: "Muscle Builder Pro",
+  type: "Muscle Gain",
+  description: "High protein plan designed for muscle building and strength gains.",
+  calorieTarget: 2800,
+  proteinTarget: 220,
+  carbTarget: 280,
+  fatTarget: 93,
+  dietaryRestrictions: ["Lactose-free options available"],
+  mealPlan: [
+    {
+      id: "1",
+      mealType: "Breakfast",
+      foods: [
+        { name: "Protein Shake", quantity: "1 scoop", calories: 120, protein: 25, carbs: 3, fat: 1 },
+        { name: "Whole Eggs", quantity: "3 large", calories: 210, protein: 18, carbs: 1, fat: 15 },
+        { name: "Oatmeal", quantity: "1 cup", calories: 300, protein: 10, carbs: 54, fat: 6 },
+      ],
+      totalCalories: 630,
+      notes: "Post-workout protein boost"
+    },
+    {
+      id: "2",
+      mealType: "Lunch",
+      foods: [
+        { name: "Grilled Chicken", quantity: "8 oz", calories: 370, protein: 70, carbs: 0, fat: 8 },
+        { name: "Brown Rice", quantity: "1.5 cups", calories: 330, protein: 7, carbs: 68, fat: 3 },
+        { name: "Mixed Vegetables", quantity: "1 cup", calories: 50, protein: 2, carbs: 12, fat: 0 },
+      ],
+      totalCalories: 750,
+      notes: "Main meal of the day"
+    },
+  ],
+  createdDate: "2024-01-01",
+  active: true,
+}
 
 export default function MemberPortal({ memberId }: MemberPortalProps) {
   const [member, setMember] = useState<Member>(mockMember)
@@ -125,10 +165,11 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
 
       {/* Main Content */}
       <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="bills">Bills & Payments</TabsTrigger>
           <TabsTrigger value="package">Package Details</TabsTrigger>
+          <TabsTrigger value="diet">Diet Plan</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -280,6 +321,121 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
                 </div>
               ) : (
                 <p className="text-gray-600">No package selected</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Diet Plan Tab */}
+        <TabsContent value="diet" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Apple className="h-5 w-5 mr-2" />
+                My Diet Plan
+              </CardTitle>
+              <CardDescription>Your personalized nutrition plan and goals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {member.dietPlanId && mockDietPlan ? (
+                <div className="space-y-6">
+                  {/* Diet Plan Overview */}
+                  <div className="p-6 border rounded-lg bg-gradient-to-r from-green-50 to-emerald-50">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2">{mockDietPlan.name}</h3>
+                        <Badge variant="outline" className="mb-2">{mockDietPlan.type}</Badge>
+                        <p className="text-gray-600">{mockDietPlan.description}</p>
+                      </div>
+                      <Badge variant={mockDietPlan.active ? "default" : "secondary"}>
+                        {mockDietPlan.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Nutritional Targets */}
+                  <div>
+                    <h4 className="text-lg font-semibold mb-4">Daily Targets</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-2xl font-bold text-blue-600">{mockDietPlan.calorieTarget}</p>
+                        <p className="text-sm text-gray-600">Calories</p>
+                      </div>
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-2xl font-bold text-green-600">{mockDietPlan.proteinTarget}g</p>
+                        <p className="text-sm text-gray-600">Protein</p>
+                      </div>
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-2xl font-bold text-orange-600">{mockDietPlan.carbTarget}g</p>
+                        <p className="text-sm text-gray-600">Carbs</p>
+                      </div>
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-2xl font-bold text-purple-600">{mockDietPlan.fatTarget}g</p>
+                        <p className="text-sm text-gray-600">Fat</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sample Meals */}
+                  <div>
+                    <h4 className="text-lg font-semibold mb-4">Sample Meals</h4>
+                    <div className="space-y-4">
+                      {mockDietPlan.mealPlan.map((meal) => (
+                        <div key={meal.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-center mb-3">
+                            <h5 className="font-semibold">{meal.mealType}</h5>
+                            <Badge variant="outline">{meal.totalCalories} calories</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {meal.foods.map((food, index) => (
+                              <div key={index} className="flex justify-between text-sm">
+                                <span>{food.name} ({food.quantity})</span>
+                                <span className="text-gray-600">{food.calories} cal, {food.protein}g protein</span>
+                              </div>
+                            ))}
+                          </div>
+                          {meal.notes && (
+                            <p className="text-sm text-gray-600 mt-2 italic">Note: {meal.notes}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dietary Restrictions */}
+                  {mockDietPlan.dietaryRestrictions.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4">Dietary Considerations</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {mockDietPlan.dietaryRestrictions.map((restriction, index) => (
+                          <Badge key={index} variant="outline">{restriction}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Personal Notes */}
+                  {member.dietNotes && (
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4">Personal Notes</h4>
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <p className="text-gray-700">{member.dietNotes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex space-x-4">
+                    <Button>Download Meal Plan</Button>
+                    <Button variant="outline">Request Changes</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Apple className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No Diet Plan Assigned</h3>
+                  <p className="text-gray-600 mb-4">Contact your trainer to get a personalized diet plan</p>
+                  <Button>Request Diet Plan</Button>
+                </div>
               )}
             </CardContent>
           </Card>

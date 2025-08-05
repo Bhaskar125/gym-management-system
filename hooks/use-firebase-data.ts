@@ -4,9 +4,10 @@ import {
   billOperations, 
   packageOperations, 
   notificationOperations,
-  analyticsOperations 
+  analyticsOperations,
+  dietPlanOperations
 } from '@/lib/firebase-operations'
-import type { Member, Bill, Package, Notification } from '@/app/types'
+import type { Member, Bill, Package, Notification, DietPlan } from '@/app/types'
 
 // Hook for managing members
 export function useMembers() {
@@ -304,5 +305,77 @@ export function useDashboardStats() {
     loading,
     error,
     refreshStats,
+  }
+}
+
+// Hook for managing diet plans
+export function useDietPlans() {
+  const [dietPlans, setDietPlans] = useState<DietPlan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const unsubscribe = dietPlanOperations.subscribe((updatedDietPlans) => {
+      setDietPlans(updatedDietPlans)
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const addDietPlan = async (dietPlanData: Omit<DietPlan, 'id'>) => {
+    try {
+      await dietPlanOperations.create(dietPlanData)
+    } catch (err) {
+      setError('Failed to add diet plan')
+      throw err
+    }
+  }
+
+  const updateDietPlan = async (id: string, dietPlanData: Partial<DietPlan>) => {
+    try {
+      await dietPlanOperations.update(id, dietPlanData)
+    } catch (err) {
+      setError('Failed to update diet plan')
+      throw err
+    }
+  }
+
+  const deleteDietPlan = async (id: string) => {
+    try {
+      await dietPlanOperations.delete(id)
+    } catch (err) {
+      setError('Failed to delete diet plan')
+      throw err
+    }
+  }
+
+  const getDietPlanById = async (id: string) => {
+    try {
+      return await dietPlanOperations.getById(id)
+    } catch (err) {
+      setError('Failed to get diet plan')
+      throw err
+    }
+  }
+
+  const getActiveDietPlans = async () => {
+    try {
+      return await dietPlanOperations.getActive()
+    } catch (err) {
+      setError('Failed to get active diet plans')
+      throw err
+    }
+  }
+
+  return {
+    dietPlans,
+    loading,
+    error,
+    addDietPlan,
+    updateDietPlan,
+    deleteDietPlan,
+    getDietPlanById,
+    getActiveDietPlans,
   }
 }

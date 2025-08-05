@@ -14,7 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Member, Bill, Package, Notification } from '@/app/types'
+import type { Member, Bill, Package, Notification, DietPlan } from '@/app/types'
 
 // Collection names
 export const COLLECTIONS = {
@@ -23,6 +23,7 @@ export const COLLECTIONS = {
   PACKAGES: 'packages',
   NOTIFICATIONS: 'notifications',
   ADMINS: 'admins',
+  DIET_PLANS: 'dietPlans',
 } as const
 
 // Member Operations
@@ -325,6 +326,137 @@ export const notificationOperations = {
       await deleteDoc(doc(db, COLLECTIONS.NOTIFICATIONS, id))
     } catch (error) {
       console.error('Error deleting notification:', error)
+      throw error
+    }
+  },
+}
+
+// Diet Plan Operations
+export const dietPlanOperations = {
+  // Create a new diet plan
+  async create(dietPlanData: Omit<DietPlan, 'id'>) {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTIONS.DIET_PLANS), {
+        ...dietPlanData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+      return docRef.id
+    } catch (error) {
+      console.error('Error adding diet plan:', error)
+      throw error
+    }
+  },
+
+  // Get all diet plans
+  async getAll(): Promise<DietPlan[]> {
+    try {
+      const querySnapshot = await getDocs(collection(db, COLLECTIONS.DIET_PLANS))
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as DietPlan[]
+    } catch (error) {
+      console.error('Error getting diet plans:', error)
+      throw error
+    }
+  },
+
+  // Get active diet plans
+  async getActive(): Promise<DietPlan[]> {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.DIET_PLANS),
+        where('active', '==', true),
+        orderBy('name')
+      )
+      const querySnapshot = await getDocs(q)
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as DietPlan[]
+    } catch (error) {
+      console.error('Error getting active diet plans:', error)
+      throw error
+    }
+  },
+
+  // Get diet plan by ID
+  async getById(id: string): Promise<DietPlan | null> {
+    try {
+      const docRef = doc(db, COLLECTIONS.DIET_PLANS, id)
+      const docSnap = await getDoc(docRef)
+      
+      if (docSnap.exists()) {
+        return {
+          id: docSnap.id,
+          ...docSnap.data(),
+        } as DietPlan
+      }
+      return null
+    } catch (error) {
+      console.error('Error getting diet plan:', error)
+      throw error
+    }
+  },
+
+  // Update a diet plan
+  async update(id: string, updates: Partial<DietPlan>) {
+    try {
+      const docRef = doc(db, COLLECTIONS.DIET_PLANS, id)
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      })
+    } catch (error) {
+      console.error('Error updating diet plan:', error)
+      throw error
+    }
+  },
+
+  // Delete a diet plan
+  async delete(id: string) {
+    try {
+      const docRef = doc(db, COLLECTIONS.DIET_PLANS, id)
+      await deleteDoc(docRef)
+    } catch (error) {
+      console.error('Error deleting diet plan:', error)
+      throw error
+    }
+  },
+
+  // Listen to diet plan changes
+  subscribe(callback: (dietPlans: DietPlan[]) => void) {
+    const q = query(
+      collection(db, COLLECTIONS.DIET_PLANS),
+      orderBy('name')
+    )
+    
+    return onSnapshot(q, (querySnapshot) => {
+      const dietPlans = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as DietPlan[]
+      callback(dietPlans)
+    })
+  },
+
+  // Get diet plans by type
+  async getByType(type: DietPlan['type']): Promise<DietPlan[]> {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.DIET_PLANS),
+        where('type', '==', type),
+        where('active', '==', true),
+        orderBy('name')
+      )
+      const querySnapshot = await getDocs(q)
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as DietPlan[]
+    } catch (error) {
+      console.error('Error getting diet plans by type:', error)
       throw error
     }
   },

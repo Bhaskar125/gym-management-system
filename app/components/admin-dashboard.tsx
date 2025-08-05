@@ -21,7 +21,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Users, CreditCard, Bell, FileText, Plus, Download, Filter, Edit, Trash2 } from "lucide-react"
-import { useMembers, useBills, usePackages, useDashboardStats } from "@/hooks/use-firebase-data"
+import { useMembers, useBills, usePackages, useDashboardStats, useDietPlans } from "@/hooks/use-firebase-data"
 
 // All data is now fetched from Firebase using custom hooks
 
@@ -29,6 +29,7 @@ export default function AdminDashboard() {
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers()
   const { bills, loading: billsLoading, addBill, updateBill, deleteBill } = useBills()
   const { packages, loading: packagesLoading, addPackage, updatePackage, deletePackage } = usePackages()
+  const { dietPlans, loading: dietPlansLoading, addDietPlan, updateDietPlan, deleteDietPlan } = useDietPlans()
   const { stats, loading: statsLoading, refreshStats } = useDashboardStats()
   
   const [selectedMember, setSelectedMember] = useState<any>(null)
@@ -38,6 +39,11 @@ export default function AdminDashboard() {
   const [memberToDelete, setMemberToDelete] = useState<any>(null)
   const [isCreateBillOpen, setIsCreateBillOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const [isAddDietPlanOpen, setIsAddDietPlanOpen] = useState(false)
+  const [isEditDietPlanOpen, setIsEditDietPlanOpen] = useState(false)
+  const [isDeleteDietPlanOpen, setIsDeleteDietPlanOpen] = useState(false)
+  const [selectedDietPlan, setSelectedDietPlan] = useState<any>(null)
+  const [dietPlanToDelete, setDietPlanToDelete] = useState<any>(null)
 
   const dashboardStats = [
     { title: "Total Members", value: stats.totalMembers, icon: Users, color: "text-blue-600" },
@@ -116,6 +122,55 @@ export default function AdminDashboard() {
     }
   }
 
+  // Diet Plan handlers
+  const handleAddDietPlan = async (dietPlanData: any) => {
+    try {
+      const newDietPlanData = {
+        ...dietPlanData,
+        createdDate: new Date().toISOString().split("T")[0],
+        active: true,
+      }
+      await addDietPlan(newDietPlanData)
+      setIsAddDietPlanOpen(false)
+    } catch (error) {
+      console.error('Failed to add diet plan:', error)
+    }
+  }
+
+  const handleEditDietPlan = (dietPlan: any) => {
+    setSelectedDietPlan(dietPlan)
+    setIsEditDietPlanOpen(true)
+  }
+
+  const handleUpdateDietPlan = async (dietPlanData: any) => {
+    try {
+      if (selectedDietPlan) {
+        await updateDietPlan(selectedDietPlan.id, dietPlanData)
+        setIsEditDietPlanOpen(false)
+        setSelectedDietPlan(null)
+      }
+    } catch (error) {
+      console.error('Failed to update diet plan:', error)
+    }
+  }
+
+  const handleDeleteDietPlan = (dietPlan: any) => {
+    setDietPlanToDelete(dietPlan)
+    setIsDeleteDietPlanOpen(true)
+  }
+
+  const confirmDeleteDietPlan = async () => {
+    try {
+      if (dietPlanToDelete) {
+        await deleteDietPlan(dietPlanToDelete.id)
+        setIsDeleteDietPlanOpen(false)
+        setDietPlanToDelete(null)
+      }
+    } catch (error) {
+      console.error('Failed to delete diet plan:', error)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
@@ -151,10 +206,11 @@ export default function AdminDashboard() {
 
       {/* Main Dashboard */}
       <Tabs defaultValue="members" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="bills">Bills</TabsTrigger>
           <TabsTrigger value="packages">Packages</TabsTrigger>
+          <TabsTrigger value="diet-plans">Diet Plans</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
@@ -176,7 +232,7 @@ export default function AdminDashboard() {
                   <DialogDescription>Enter member details below</DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
-                  <MemberForm onSubmit={handleAddMember} packages={packages} />
+                                                   <MemberForm onSubmit={handleAddMember} packages={packages} dietPlans={dietPlans} />
                 </div>
               </DialogContent>
             </Dialog>
@@ -193,6 +249,7 @@ export default function AdminDashboard() {
                     <EditMemberForm 
                       onSubmit={handleUpdateMember} 
                       packages={packages} 
+                      dietPlans={dietPlans}
                       member={selectedMember}
                     />
                   )}
@@ -390,6 +447,130 @@ export default function AdminDashboard() {
            </div>
         </TabsContent>
 
+        {/* Diet Plans Tab */}
+        <TabsContent value="diet-plans" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Diet Plans Management</h2>
+            <Dialog open={isAddDietPlanOpen} onOpenChange={setIsAddDietPlanOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Diet Plan
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader className="space-y-3">
+                  <DialogTitle className="text-xl">Add New Diet Plan</DialogTitle>
+                  <DialogDescription>Create a new diet plan for members</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <DietPlanForm onSubmit={handleAddDietPlan} />
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit Diet Plan Dialog */}
+            <Dialog open={isEditDietPlanOpen} onOpenChange={setIsEditDietPlanOpen}>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader className="space-y-3">
+                  <DialogTitle className="text-xl">Edit Diet Plan</DialogTitle>
+                  <DialogDescription>Update diet plan details below</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {selectedDietPlan && (
+                    <EditDietPlanForm 
+                      onSubmit={handleUpdateDietPlan} 
+                      dietPlan={selectedDietPlan}
+                    />
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Delete Diet Plan Confirmation Dialog */}
+            <Dialog open={isDeleteDietPlanOpen} onOpenChange={setIsDeleteDietPlanOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete Diet Plan</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to delete "{dietPlanToDelete?.name}"? This action cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end space-x-2 mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsDeleteDietPlanOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={confirmDeleteDietPlan}
+                  >
+                    Delete Diet Plan
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {dietPlansLoading ? (
+                <div className="p-6 text-center">Loading diet plans...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Calories</TableHead>
+                      <TableHead>Protein</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dietPlans.map((dietPlan) => (
+                      <TableRow key={dietPlan.id}>
+                        <TableCell className="font-medium">{dietPlan.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{dietPlan.type}</Badge>
+                        </TableCell>
+                        <TableCell>{dietPlan.calorieTarget}</TableCell>
+                        <TableCell>{dietPlan.proteinTarget}g</TableCell>
+                        <TableCell>
+                          <Badge variant={dietPlan.active ? "default" : "secondary"}>
+                            {dietPlan.active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditDietPlan(dietPlan)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteDietPlan(dietPlan)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-4">
           <div className="flex justify-between items-center">
@@ -506,18 +687,20 @@ export default function AdminDashboard() {
 }
 
 // Member Form Component
- function MemberForm({ onSubmit, packages }: { onSubmit: (data: any) => Promise<void>; packages: any[] }) {
+ function MemberForm({ onSubmit, packages, dietPlans }: { onSubmit: (data: any) => Promise<void>; packages: any[]; dietPlans: any[] }) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     packageId: "",
+    dietPlanId: "",
+    dietNotes: "",
   })
 
      const handleSubmit = async (e: React.FormEvent) => {
      e.preventDefault()
      await onSubmit(formData)
-     setFormData({ name: "", email: "", phone: "", packageId: "" })
+     setFormData({ name: "", email: "", phone: "", packageId: "", dietPlanId: "", dietNotes: "" })
    }
 
   return (
@@ -579,6 +762,40 @@ export default function AdminDashboard() {
         </Select>
       </div>
       
+      {/* Diet Plan and Notes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="diet-plan" className="text-sm font-medium">Diet Plan (Optional)</Label>
+          <Select value={formData.dietPlanId} onValueChange={(value) => setFormData({ ...formData, dietPlanId: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a diet plan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No Diet Plan</SelectItem>
+              {dietPlans.filter(plan => plan.active).map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  <div className="flex justify-between items-center w-full">
+                    <span>{plan.name}</span>
+                    <span className="text-blue-600 font-medium">{plan.type}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="diet-notes" className="text-sm font-medium">Diet Notes</Label>
+          <Textarea
+            id="diet-notes"
+            placeholder="Any specific dietary requirements or notes..."
+            value={formData.dietNotes}
+            onChange={(e) => setFormData({ ...formData, dietNotes: e.target.value })}
+            className="resize-none"
+            rows={3}
+          />
+        </div>
+      </div>
+      
       {/* Submit Button */}
       <div className="pt-4">
         <Button type="submit" className="w-full h-11 text-base">
@@ -590,12 +807,14 @@ export default function AdminDashboard() {
 }
 
 // Edit Member Form Component
-function EditMemberForm({ onSubmit, packages, member }: { onSubmit: (data: any) => Promise<void>; packages: any[]; member: any }) {
+function EditMemberForm({ onSubmit, packages, dietPlans, member }: { onSubmit: (data: any) => Promise<void>; packages: any[]; dietPlans: any[]; member: any }) {
   const [formData, setFormData] = useState({
     name: member.name || "",
     email: member.email || "",
     phone: member.phone || "",
     packageId: member.packageId || "",
+    dietPlanId: member.dietPlanId || "",
+    dietNotes: member.dietNotes || "",
     active: member.active !== undefined ? member.active : true,
   })
 
@@ -687,6 +906,40 @@ function EditMemberForm({ onSubmit, packages, member }: { onSubmit: (data: any) 
               </SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </div>
+      
+      {/* Diet Plan and Notes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-diet-plan" className="text-sm font-medium">Diet Plan (Optional)</Label>
+          <Select value={formData.dietPlanId} onValueChange={(value) => setFormData({ ...formData, dietPlanId: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a diet plan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No Diet Plan</SelectItem>
+              {dietPlans.filter(plan => plan.active).map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  <div className="flex justify-between items-center w-full">
+                    <span>{plan.name}</span>
+                    <span className="text-blue-600 font-medium">{plan.type}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-diet-notes" className="text-sm font-medium">Diet Notes</Label>
+          <Textarea
+            id="edit-diet-notes"
+            placeholder="Any specific dietary requirements or notes..."
+            value={formData.dietNotes}
+            onChange={(e) => setFormData({ ...formData, dietNotes: e.target.value })}
+            className="resize-none"
+            rows={3}
+          />
         </div>
       </div>
       
@@ -800,6 +1053,299 @@ function NotificationForm({ onSubmit }: { onSubmit: () => void }) {
       <Button type="submit" className="w-full">
         Send Notification
       </Button>
+    </form>
+  )
+}
+
+// Diet Plan Form Component
+function DietPlanForm({ onSubmit }: { onSubmit: (data: any) => Promise<void> }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "Weight Loss" as any,
+    description: "",
+    calorieTarget: "",
+    proteinTarget: "",
+    carbTarget: "",
+    fatTarget: "",
+    dietaryRestrictions: [] as string[],
+    mealPlan: [] as any[],
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const processedData = {
+      ...formData,
+      calorieTarget: Number.parseInt(formData.calorieTarget),
+      proteinTarget: Number.parseInt(formData.proteinTarget),
+      carbTarget: Number.parseInt(formData.carbTarget),
+      fatTarget: Number.parseInt(formData.fatTarget),
+    }
+    await onSubmit(processedData)
+    setFormData({
+      name: "",
+      type: "Weight Loss",
+      description: "",
+      calorieTarget: "",
+      proteinTarget: "",
+      carbTarget: "",
+      fatTarget: "",
+      dietaryRestrictions: [],
+      mealPlan: [],
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Name and Type Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="diet-name" className="text-sm font-medium">Plan Name</Label>
+          <Input
+            id="diet-name"
+            placeholder="Enter diet plan name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="diet-type" className="text-sm font-medium">Plan Type</Label>
+          <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Weight Loss">Weight Loss</SelectItem>
+              <SelectItem value="Muscle Gain">Muscle Gain</SelectItem>
+              <SelectItem value="Maintenance">Maintenance</SelectItem>
+              <SelectItem value="Athletic Performance">Athletic Performance</SelectItem>
+              <SelectItem value="Custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="diet-description" className="text-sm font-medium">Description</Label>
+        <Textarea
+          id="diet-description"
+          placeholder="Describe the diet plan goals and approach..."
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={3}
+          required
+        />
+      </div>
+
+      {/* Nutritional Targets */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="calories" className="text-sm font-medium">Calories</Label>
+          <Input
+            id="calories"
+            type="number"
+            placeholder="2000"
+            value={formData.calorieTarget}
+            onChange={(e) => setFormData({ ...formData, calorieTarget: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="protein" className="text-sm font-medium">Protein (g)</Label>
+          <Input
+            id="protein"
+            type="number"
+            placeholder="150"
+            value={formData.proteinTarget}
+            onChange={(e) => setFormData({ ...formData, proteinTarget: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="carbs" className="text-sm font-medium">Carbs (g)</Label>
+          <Input
+            id="carbs"
+            type="number"
+            placeholder="200"
+            value={formData.carbTarget}
+            onChange={(e) => setFormData({ ...formData, carbTarget: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="fat" className="text-sm font-medium">Fat (g)</Label>
+          <Input
+            id="fat"
+            type="number"
+            placeholder="70"
+            value={formData.fatTarget}
+            onChange={(e) => setFormData({ ...formData, fatTarget: e.target.value })}
+            required
+          />
+        </div>
+      </div>
+
+      {/* Submit Button */}
+      <div className="pt-4">
+        <Button type="submit" className="w-full h-11 text-base">
+          Create Diet Plan
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+// Edit Diet Plan Form Component
+function EditDietPlanForm({ onSubmit, dietPlan }: { onSubmit: (data: any) => Promise<void>; dietPlan: any }) {
+  const [formData, setFormData] = useState({
+    name: dietPlan.name || "",
+    type: dietPlan.type || "Weight Loss",
+    description: dietPlan.description || "",
+    calorieTarget: dietPlan.calorieTarget?.toString() || "",
+    proteinTarget: dietPlan.proteinTarget?.toString() || "",
+    carbTarget: dietPlan.carbTarget?.toString() || "",
+    fatTarget: dietPlan.fatTarget?.toString() || "",
+    active: dietPlan.active !== undefined ? dietPlan.active : true,
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const processedData = {
+      ...formData,
+      calorieTarget: Number.parseInt(formData.calorieTarget),
+      proteinTarget: Number.parseInt(formData.proteinTarget),
+      carbTarget: Number.parseInt(formData.carbTarget),
+      fatTarget: Number.parseInt(formData.fatTarget),
+    }
+    await onSubmit(processedData)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Name and Type Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-diet-name" className="text-sm font-medium">Plan Name</Label>
+          <Input
+            id="edit-diet-name"
+            placeholder="Enter diet plan name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-diet-type" className="text-sm font-medium">Plan Type</Label>
+          <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Weight Loss">Weight Loss</SelectItem>
+              <SelectItem value="Muscle Gain">Muscle Gain</SelectItem>
+              <SelectItem value="Maintenance">Maintenance</SelectItem>
+              <SelectItem value="Athletic Performance">Athletic Performance</SelectItem>
+              <SelectItem value="Custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-diet-description" className="text-sm font-medium">Description</Label>
+        <Textarea
+          id="edit-diet-description"
+          placeholder="Describe the diet plan goals and approach..."
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={3}
+          required
+        />
+      </div>
+
+      {/* Nutritional Targets */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-calories" className="text-sm font-medium">Calories</Label>
+          <Input
+            id="edit-calories"
+            type="number"
+            placeholder="2000"
+            value={formData.calorieTarget}
+            onChange={(e) => setFormData({ ...formData, calorieTarget: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-protein" className="text-sm font-medium">Protein (g)</Label>
+          <Input
+            id="edit-protein"
+            type="number"
+            placeholder="150"
+            value={formData.proteinTarget}
+            onChange={(e) => setFormData({ ...formData, proteinTarget: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-carbs" className="text-sm font-medium">Carbs (g)</Label>
+          <Input
+            id="edit-carbs"
+            type="number"
+            placeholder="200"
+            value={formData.carbTarget}
+            onChange={(e) => setFormData({ ...formData, carbTarget: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edit-fat" className="text-sm font-medium">Fat (g)</Label>
+          <Input
+            id="edit-fat"
+            type="number"
+            placeholder="70"
+            value={formData.fatTarget}
+            onChange={(e) => setFormData({ ...formData, fatTarget: e.target.value })}
+            required
+          />
+        </div>
+      </div>
+
+      {/* Status */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-diet-status" className="text-sm font-medium">Status</Label>
+        <Select 
+          value={formData.active ? "active" : "inactive"} 
+          onValueChange={(value) => setFormData({ ...formData, active: value === "active" })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                Active
+              </div>
+            </SelectItem>
+            <SelectItem value="inactive">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                Inactive
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Submit Button */}
+      <div className="pt-4">
+        <Button type="submit" className="w-full h-11 text-base">
+          Update Diet Plan
+        </Button>
+      </div>
     </form>
   )
 }
