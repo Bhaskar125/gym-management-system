@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Users, Shield, Search } from "lucide-react"
+import { Users, Shield, Search, UserPlus } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { usePackages, useDietPlans } from "@/hooks/use-firebase-data"
+import { memberOperations } from "@/lib/firebase-operations"
 
 interface LoginFormProps {
   onLogin: (user: { id: string; name: string; role: "admin" | "member" | "user" | "setup" | "debug" }) => void
@@ -19,6 +22,23 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   const [password, setPassword] = useState("")
   const [activeTab, setActiveTab] = useState("user")
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Registration form state
+  const [registerData, setRegisterData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    packageId: "",
+    dietPlanId: "",
+    dietNotes: ""
+  })
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [registrationError, setRegistrationError] = useState("")
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
+  
+  // Get packages and diet plans for registration
+  const { packages, loading: packagesLoading } = usePackages()
+  const { dietPlans, loading: dietPlansLoading } = useDietPlans()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,6 +69,64 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     onLogin({ id: "guest-1", name: "Guest User", role: "user" })
   }
 
+  const handleRegistration = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsRegistering(true)
+    setRegistrationError("")
+
+    try {
+      // Validate required fields
+      if (!registerData.name || !registerData.email || !registerData.phone || !registerData.packageId) {
+        setRegistrationError("Please fill in all required fields")
+        setIsRegistering(false)
+        return
+      }
+
+      // Create new member in Firebase
+      const memberData = {
+        name: registerData.name,
+        email: registerData.email,
+        phone: registerData.phone,
+        packageId: registerData.packageId,
+        dietPlanId: registerData.dietPlanId || undefined,
+        dietNotes: registerData.dietNotes || undefined,
+        joinDate: new Date().toISOString().split("T")[0],
+        active: true,
+      }
+
+      const memberId = await memberOperations.create(memberData)
+      
+      // Save the name before resetting form
+      const memberName = registerData.name
+      
+      // Reset form and show success
+      setRegisterData({
+        name: "",
+        email: "",
+        phone: "",
+        packageId: "",
+        dietPlanId: "",
+        dietNotes: ""
+      })
+      setRegistrationSuccess(true)
+      
+      // Auto-login the new member after 2 seconds
+      setTimeout(() => {
+        onLogin({ 
+          id: memberId, 
+          name: memberName, 
+          role: "member" 
+        })
+      }, 2000)
+
+    } catch (error) {
+      console.error("Registration error:", error)
+      setRegistrationError("Failed to create account. Please try again.")
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md space-y-6">
@@ -60,17 +138,21 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">Welcome Back</CardTitle>
+            <CardTitle className="text-center">Welcome to GymPro</CardTitle>
             <CardDescription className="text-center">
-              Choose your access level to continue
+              Sign in to your account or register as a new member
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="user" className="text-xs">
                   <Search className="h-4 w-4 mr-1" />
                   Public
+                </TabsTrigger>
+                <TabsTrigger value="register" className="text-xs">
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  Register
                 </TabsTrigger>
                 <TabsTrigger value="member" className="text-xs">
                   <Users className="h-4 w-4 mr-1" />
@@ -94,6 +176,132 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                     Continue as Guest
                   </Button>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="register" className="space-y-4 mt-4">
+                {registrationSuccess ? (
+                  <div className="text-center space-y-4">
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <UserPlus className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                      <h3 className="font-semibold text-green-800 mb-2">Registration Successful!</h3>
+                      <p className="text-sm text-green-600">
+                        Welcome to GymPro! You'll be automatically logged in...
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleRegistration} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="register-name">Full Name *</Label>
+                      <Input
+                        id="register-name"
+                        placeholder="Enter your full name"
+                        value={registerData.name}
+                        onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-email">Email Address *</Label>
+                      <Input
+                        id="register-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={registerData.email}
+                        onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-phone">Phone Number *</Label>
+                      <Input
+                        id="register-phone"
+                        placeholder="Enter your phone number"
+                        value={registerData.phone}
+                        onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-package">Membership Package *</Label>
+                      <Select 
+                        value={registerData.packageId} 
+                        onValueChange={(value) => setRegisterData({ ...registerData, packageId: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a membership package" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {packagesLoading ? (
+                            <SelectItem value="" disabled>Loading packages...</SelectItem>
+                          ) : (
+                            packages.map((pkg) => (
+                              <SelectItem key={pkg.id} value={pkg.id}>
+                                <div className="flex justify-between items-center w-full">
+                                  <span>{pkg.name}</span>
+                                  <span className="text-green-600 font-medium ml-2">${pkg.price}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-diet">Diet Plan (Optional)</Label>
+                      <Select 
+                        value={registerData.dietPlanId} 
+                        onValueChange={(value) => setRegisterData({ ...registerData, dietPlanId: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a diet plan (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No Diet Plan</SelectItem>
+                          {dietPlansLoading ? (
+                            <SelectItem value="" disabled>Loading diet plans...</SelectItem>
+                          ) : (
+                            dietPlans.filter(plan => plan.active).map((plan) => (
+                              <SelectItem key={plan.id} value={plan.id}>
+                                <div className="flex justify-between items-center w-full">
+                                  <span>{plan.name}</span>
+                                  <span className="text-blue-600 font-medium ml-2">{plan.type}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-notes">Dietary Notes (Optional)</Label>
+                      <Input
+                        id="register-notes"
+                        placeholder="Any dietary requirements or notes..."
+                        value={registerData.dietNotes}
+                        onChange={(e) => setRegisterData({ ...registerData, dietNotes: e.target.value })}
+                      />
+                    </div>
+                    
+                    {registrationError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-600">{registrationError}</p>
+                      </div>
+                    )}
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isRegistering || packagesLoading}
+                    >
+                      {isRegistering ? "Creating Account..." : "Create Account"}
+                    </Button>
+                    
+                    <p className="text-xs text-gray-600 text-center">
+                      By registering, you agree to our terms and conditions
+                    </p>
+                  </form>
+                )}
               </TabsContent>
 
               <TabsContent value="member" className="space-y-4 mt-4">
@@ -162,17 +370,21 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         {/* Demo Credentials */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Demo Credentials</CardTitle>
+            <CardTitle className="text-sm">Demo Credentials & Registration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-            <Badge variant="outline">Member</Badge>
-            <span>member@demo.com / member</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <Badge variant="destructive">Admin</Badge>
-            <span>admin@demo.com / admin</span>
-          </div>
+            <div className="p-2 bg-green-50 rounded text-xs text-center mb-3">
+              <UserPlus className="h-4 w-4 mx-auto mb-1 text-green-600" />
+              <span className="text-green-700 font-medium">New users can register instantly!</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <Badge variant="outline">Member</Badge>
+              <span>member@demo.com / member</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <Badge variant="destructive">Admin</Badge>
+              <span>admin@demo.com / admin</span>
+            </div>
           <div className="pt-2 border-t space-y-2">
             <Button 
               variant="ghost" 
