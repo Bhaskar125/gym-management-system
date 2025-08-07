@@ -54,11 +54,26 @@ export default function AdminDashboard() {
 
   const handleAddMember = async (memberData: any) => {
     try {
-      const newMemberData = {
-        ...memberData,
+      const newMemberData: any = {
+        name: memberData.name,
+        email: memberData.email,
+        phone: memberData.phone,
+        password: memberData.password,
         joinDate: new Date().toISOString().split("T")[0],
         active: true,
       }
+
+      // Only add optional fields if they have values
+      if (memberData.packageId && memberData.packageId !== "none") {
+        newMemberData.packageId = memberData.packageId
+      }
+      if (memberData.dietPlanId && memberData.dietPlanId !== "none") {
+        newMemberData.dietPlanId = memberData.dietPlanId
+      }
+      if (memberData.dietNotes && memberData.dietNotes.trim()) {
+        newMemberData.dietNotes = memberData.dietNotes.trim()
+      }
+
       await addMember(newMemberData)
       setIsAddMemberOpen(false)
       await refreshStats() // Refresh dashboard stats
@@ -92,7 +107,26 @@ export default function AdminDashboard() {
   const handleUpdateMember = async (memberData: any) => {
     try {
       if (selectedMember) {
-        await updateMember(selectedMember.id, memberData)
+        const updatedMemberData: any = {
+          name: memberData.name,
+          email: memberData.email,
+          phone: memberData.phone,
+          password: memberData.password,
+          active: memberData.active,
+        }
+
+        // Only add optional fields if they have values
+        if (memberData.packageId && memberData.packageId !== "none") {
+          updatedMemberData.packageId = memberData.packageId
+        }
+        if (memberData.dietPlanId && memberData.dietPlanId !== "none") {
+          updatedMemberData.dietPlanId = memberData.dietPlanId
+        }
+        if (memberData.dietNotes && memberData.dietNotes.trim()) {
+          updatedMemberData.dietNotes = memberData.dietNotes.trim()
+        }
+
+        await updateMember(selectedMember.id, updatedMemberData)
         setIsEditMemberOpen(false)
         setSelectedMember(null)
         await refreshStats() // Refresh dashboard stats
@@ -692,15 +726,16 @@ export default function AdminDashboard() {
     name: "",
     email: "",
     phone: "",
-    packageId: "",
-    dietPlanId: "",
+    password: "",
+    packageId: "none",
+    dietPlanId: "none",
     dietNotes: "",
   })
 
      const handleSubmit = async (e: React.FormEvent) => {
      e.preventDefault()
      await onSubmit(formData)
-     setFormData({ name: "", email: "", phone: "", packageId: "", dietPlanId: "", dietNotes: "" })
+     setFormData({ name: "", email: "", phone: "", password: "", packageId: "none", dietPlanId: "none", dietNotes: "" })
    }
 
   return (
@@ -742,6 +777,19 @@ export default function AdminDashboard() {
         />
       </div>
       
+      {/* Password */}
+      <div className="space-y-2">
+        <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Enter password"
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          required
+        />
+      </div>
+      
       {/* Package */}
       <div className="space-y-2">
         <Label htmlFor="package" className="text-sm font-medium">Membership Package</Label>
@@ -750,6 +798,7 @@ export default function AdminDashboard() {
             <SelectValue placeholder="Select a membership package" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="none">No Package</SelectItem>
             {packages.map((pkg) => (
               <SelectItem key={pkg.id} value={pkg.id}>
                 <div className="flex justify-between items-center w-full">
@@ -771,7 +820,7 @@ export default function AdminDashboard() {
               <SelectValue placeholder="Select a diet plan" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No Diet Plan</SelectItem>
+              <SelectItem value="none">No Diet Plan</SelectItem>
               {dietPlans.filter(plan => plan.active).map((plan) => (
                 <SelectItem key={plan.id} value={plan.id}>
                   <div className="flex justify-between items-center w-full">
@@ -812,8 +861,9 @@ function EditMemberForm({ onSubmit, packages, dietPlans, member }: { onSubmit: (
     name: member.name || "",
     email: member.email || "",
     phone: member.phone || "",
-    packageId: member.packageId || "",
-    dietPlanId: member.dietPlanId || "",
+    password: member.password || "",
+    packageId: member.packageId || "none",
+    dietPlanId: member.dietPlanId || "none",
     dietNotes: member.dietNotes || "",
     active: member.active !== undefined ? member.active : true,
   })
@@ -858,6 +908,19 @@ function EditMemberForm({ onSubmit, packages, dietPlans, member }: { onSubmit: (
           placeholder="Enter phone number"
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          required
+        />
+      </div>
+      
+      {/* Password */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-password" className="text-sm font-medium">Password</Label>
+        <Input
+          id="edit-password"
+          type="password"
+          placeholder="Enter password"
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           required
         />
       </div>
@@ -918,7 +981,7 @@ function EditMemberForm({ onSubmit, packages, dietPlans, member }: { onSubmit: (
               <SelectValue placeholder="Select a diet plan" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No Diet Plan</SelectItem>
+              <SelectItem value="none">No Diet Plan</SelectItem>
               {dietPlans.filter(plan => plan.active).map((plan) => (
                 <SelectItem key={plan.id} value={plan.id}>
                   <div className="flex justify-between items-center w-full">

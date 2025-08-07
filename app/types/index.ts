@@ -3,7 +3,8 @@ export interface Member {
     name: string
     email: string
     phone: string
-    packageId: string
+    password: string
+    packageId?: string
     joinDate: string
     active: boolean
     dietPlanId?: string

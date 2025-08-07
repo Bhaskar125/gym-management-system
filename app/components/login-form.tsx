@@ -28,8 +28,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     name: "",
     email: "",
     phone: "",
-    packageId: "",
-    dietPlanId: "",
+    password: "",
+    packageId: "none",
+    dietPlanId: "none",
     dietNotes: ""
   })
   const [isRegistering, setIsRegistering] = useState(false)
@@ -76,22 +77,31 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
     try {
       // Validate required fields
-      if (!registerData.name || !registerData.email || !registerData.phone || !registerData.packageId) {
-        setRegistrationError("Please fill in all required fields")
+      if (!registerData.name || !registerData.email || !registerData.phone || !registerData.password) {
+        setRegistrationError("Please fill in all required fields (name, email, phone, password)")
         setIsRegistering(false)
         return
       }
 
-      // Create new member in Firebase
-      const memberData = {
+      // Create new member in Firebase - filter out undefined values
+      const memberData: any = {
         name: registerData.name,
         email: registerData.email,
         phone: registerData.phone,
-        packageId: registerData.packageId,
-        dietPlanId: registerData.dietPlanId || undefined,
-        dietNotes: registerData.dietNotes || undefined,
+        password: registerData.password,
         joinDate: new Date().toISOString().split("T")[0],
         active: true,
+      }
+
+      // Only add optional fields if they have values
+      if (registerData.packageId && registerData.packageId !== "none") {
+        memberData.packageId = registerData.packageId
+      }
+      if (registerData.dietPlanId && registerData.dietPlanId !== "none") {
+        memberData.dietPlanId = registerData.dietPlanId
+      }
+      if (registerData.dietNotes && registerData.dietNotes.trim()) {
+        memberData.dietNotes = registerData.dietNotes.trim()
       }
 
       const memberId = await memberOperations.create(memberData)
@@ -104,8 +114,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         name: "",
         email: "",
         phone: "",
-        packageId: "",
-        dietPlanId: "",
+        password: "",
+        packageId: "none",
+        dietPlanId: "none",
         dietNotes: ""
       })
       setRegistrationSuccess(true)
@@ -223,7 +234,18 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="register-package">Membership Package *</Label>
+                      <Label htmlFor="register-password">Password *</Label>
+                      <Input
+                        id="register-password"
+                        type="password"
+                        placeholder="Create a password"
+                        value={registerData.password}
+                        onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-package">Membership Package (Optional)</Label>
                       <Select 
                         value={registerData.packageId} 
                         onValueChange={(value) => setRegisterData({ ...registerData, packageId: value })}
@@ -232,8 +254,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                           <SelectValue placeholder="Choose a membership package" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="none">No Package</SelectItem>
                           {packagesLoading ? (
-                            <SelectItem value="" disabled>Loading packages...</SelectItem>
+                            <SelectItem value="loading" disabled>Loading packages...</SelectItem>
                           ) : (
                             packages.map((pkg) => (
                               <SelectItem key={pkg.id} value={pkg.id}>
@@ -257,9 +280,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                           <SelectValue placeholder="Select a diet plan (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Diet Plan</SelectItem>
+                          <SelectItem value="none">No Diet Plan</SelectItem>
                           {dietPlansLoading ? (
-                            <SelectItem value="" disabled>Loading diet plans...</SelectItem>
+                            <SelectItem value="loading" disabled>Loading diet plans...</SelectItem>
                           ) : (
                             dietPlans.filter(plan => plan.active).map((plan) => (
                               <SelectItem key={plan.id} value={plan.id}>
