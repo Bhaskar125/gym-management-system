@@ -45,14 +45,22 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     e.preventDefault()
     setIsLoading(true)
 
-    // Mock authentication - in real app, you'd call an API
-    setTimeout(() => {
+    try {
       let user: { id: string; name: string; role: "admin" | "member" | "user" | "setup" | "debug" }
 
       if (activeTab === "admin" && email === "admin@demo.com" && password === "admin") {
+        // Demo admin login
         user = { id: "admin-1", name: "Admin User", role: "admin" }
-      } else if (activeTab === "member" && email === "member@demo.com" && password === "member") {
-        user = { id: "member-1", name: "John Doe", role: "member" }
+      } else if (activeTab === "member") {
+        // Real member authentication against Firebase
+        const member = await memberOperations.authenticate(email, password)
+        if (member) {
+          user = { id: member.id, name: member.name, role: "member" }
+        } else {
+          alert("Invalid email or password. Please check your credentials.")
+          setIsLoading(false)
+          return
+        }
       } else if (activeTab === "user") {
         user = { id: "user-1", name: "Public User", role: "user" }
       } else {
@@ -63,7 +71,11 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
       onLogin(user)
       setIsLoading(false)
-    }, 1000)
+    } catch (error) {
+      console.error('Login error:', error)
+      alert("Login failed. Please try again.")
+      setIsLoading(false)
+    }
   }
 
   const handleGuestAccess = () => {
@@ -334,7 +346,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                     <Input
                       id="member-email"
                       type="email"
-                      placeholder="member@demo.com"
+                      placeholder="Enter your email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -393,7 +405,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         {/* Demo Credentials */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Demo Credentials & Registration</CardTitle>
+            <CardTitle className="text-sm">Authentication & Registration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="p-2 bg-green-50 rounded text-xs text-center mb-3">
@@ -402,7 +414,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             </div>
             <div className="flex items-center justify-between text-xs">
               <Badge variant="outline">Member</Badge>
-              <span>member@demo.com / member</span>
+              <span>Use your registered credentials</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <Badge variant="destructive">Admin</Badge>

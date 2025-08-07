@@ -9,107 +9,66 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { User, CreditCard, Calendar, Package, Download, Apple } from "lucide-react"
 import type { Member, Bill, Package as PackageType, DietPlan } from "@/app/types"
+import { memberOperations, billOperations, packageOperations, dietPlanOperations } from "@/lib/firebase-operations"
 
 interface MemberPortalProps {
   memberId: string
 }
 
-// Mock data for member portal
-const mockMember: Member = {
-  id: "member-1",
-  name: "John Doe",
-  email: "john@example.com",
-  phone: "+1234567890",
-  packageId: "premium",
-  joinDate: "2024-01-15",
-  active: true,
-  dietPlanId: "diet-1",
-  dietNotes: "Looking to build muscle mass, prefer protein-heavy meals",
-}
-
-const mockBills: Bill[] = [
-  {
-    id: "1",
-    memberId: "member-1",
-    amount: 100,
-    month: "2024-01",
-    paymentDate: "2024-01-15",
-    status: "Paid",
-    receiptUrl: "/receipt1.pdf",
-  },
-  {
-    id: "2",
-    memberId: "member-1",
-    amount: 100,
-    month: "2024-02",
-    paymentDate: "2024-02-15",
-    status: "Paid",
-    receiptUrl: "/receipt2.pdf",
-  },
-  {
-    id: "3",
-    memberId: "member-1",
-    amount: 100,
-    month: "2024-03",
-    paymentDate: "",
-    status: "Pending",
-  },
-]
-
-const mockPackages: PackageType[] = [
-  { id: "basic", name: "Basic Plan", price: 50, duration: "1 month" },
-  { id: "premium", name: "Premium Plan", price: 100, duration: "1 month" },
-  { id: "annual", name: "Annual Plan", price: 500, duration: "12 months" },
-]
-
-const mockDietPlan: DietPlan = {
-  id: "diet-1",
-  name: "Muscle Builder Pro",
-  type: "Muscle Gain",
-  description: "High protein plan designed for muscle building and strength gains.",
-  calorieTarget: 2800,
-  proteinTarget: 220,
-  carbTarget: 280,
-  fatTarget: 93,
-  dietaryRestrictions: ["Lactose-free options available"],
-  mealPlan: [
-    {
-      id: "1",
-      mealType: "Breakfast",
-      foods: [
-        { name: "Protein Shake", quantity: "1 scoop", calories: 120, protein: 25, carbs: 3, fat: 1 },
-        { name: "Whole Eggs", quantity: "3 large", calories: 210, protein: 18, carbs: 1, fat: 15 },
-        { name: "Oatmeal", quantity: "1 cup", calories: 300, protein: 10, carbs: 54, fat: 6 },
-      ],
-      totalCalories: 630,
-      notes: "Post-workout protein boost"
-    },
-    {
-      id: "2",
-      mealType: "Lunch",
-      foods: [
-        { name: "Grilled Chicken", quantity: "8 oz", calories: 370, protein: 70, carbs: 0, fat: 8 },
-        { name: "Brown Rice", quantity: "1.5 cups", calories: 330, protein: 7, carbs: 68, fat: 3 },
-        { name: "Mixed Vegetables", quantity: "1 cup", calories: 50, protein: 2, carbs: 12, fat: 0 },
-      ],
-      totalCalories: 750,
-      notes: "Main meal of the day"
-    },
-  ],
-  createdDate: "2024-01-01",
-  active: true,
-}
+// Note: All data is now fetched from Firebase in real-time
 
 export default function MemberPortal({ memberId }: MemberPortalProps) {
-  const [member, setMember] = useState<Member>(mockMember)
-  const [bills, setBills] = useState<Bill[]>(mockBills)
+  const [member, setMember] = useState<Member | null>(null)
+  const [bills, setBills] = useState<Bill[]>([])
   const [selectedPackage, setSelectedPackage] = useState<PackageType | null>(null)
+  const [dietPlan, setDietPlan] = useState<DietPlan | null>(null)
+  const [packages, setPackages] = useState<PackageType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Find the member's package
-    const pkg = mockPackages.find((p) => p.id === member.packageId)
-    setSelectedPackage(pkg || null)
-  }, [member.packageId])
+    const fetchMemberData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Fetch member details
+        const memberData = await memberOperations.getById(memberId)
+        if (memberData) {
+          setMember(memberData)
+
+          // Fetch member's diet plan if they have one
+          if (memberData.dietPlanId) {
+            const dietPlanData = await dietPlanOperations.getById(memberData.dietPlanId)
+            setDietPlan(dietPlanData)
+          }
+        }
+
+        // Fetch all packages
+        const allPackages = await packageOperations.getAll()
+        setPackages(allPackages)
+
+        // Find member's package if they have one
+        if (memberData && memberData.packageId) {
+          const memberPackage = allPackages.find(pkg => pkg.id === memberData.packageId)
+          setSelectedPackage(memberPackage || null)
+        }
+
+        // Fetch all bills and filter for this member
+        const allBills = await billOperations.getAll()
+        const memberBills = allBills.filter(bill => bill.memberId === memberId)
+        setBills(memberBills)
+
+      } catch (err) {
+        console.error('Error fetching member data:', err)
+        setError('Failed to load member data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMemberData()
+  }, [memberId])
 
   const memberBills = bills.filter((bill) => bill.memberId === memberId)
   const paidBills = memberBills.filter((bill) => bill.status === "Paid")
@@ -128,6 +87,40 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
             }
           : bill
       )
+    )
+  }
+
+  // Handle loading and error states
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">Loading...</h1>
+          <p className="text-gray-600 mt-2">Please wait while we fetch your member details</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-red-600">Error</h1>
+          <p className="text-gray-600 mt-2">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!member) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">Member Not Found</h1>
+          <p className="text-gray-600 mt-2">Unable to find member details</p>
+        </div>
+      </div>
     )
   }
 
@@ -297,7 +290,7 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
                   <div>
                     <h4 className="text-lg font-semibold mb-4">Available Packages</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {mockPackages.map((pkg) => (
+                      {packages.map((pkg: PackageType) => (
                         <div
                           key={pkg.id}
                           className={`p-4 border rounded-lg ${
@@ -337,18 +330,18 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
               <CardDescription>Your personalized nutrition plan and goals</CardDescription>
             </CardHeader>
             <CardContent>
-              {member.dietPlanId && mockDietPlan ? (
+              {member.dietPlanId && dietPlan ? (
                 <div className="space-y-6">
                   {/* Diet Plan Overview */}
                   <div className="p-6 border rounded-lg bg-gradient-to-r from-green-50 to-emerald-50">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h3 className="text-2xl font-bold mb-2">{mockDietPlan.name}</h3>
-                        <Badge variant="outline" className="mb-2">{mockDietPlan.type}</Badge>
-                        <p className="text-gray-600">{mockDietPlan.description}</p>
+                        <h3 className="text-2xl font-bold mb-2">{dietPlan.name}</h3>
+                        <Badge variant="outline" className="mb-2">{dietPlan.type}</Badge>
+                        <p className="text-gray-600">{dietPlan.description}</p>
                       </div>
-                      <Badge variant={mockDietPlan.active ? "default" : "secondary"}>
-                        {mockDietPlan.active ? "Active" : "Inactive"}
+                      <Badge variant={dietPlan.active ? "default" : "secondary"}>
+                        {dietPlan.active ? "Active" : "Inactive"}
                       </Badge>
                     </div>
                   </div>
@@ -358,19 +351,19 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
                     <h4 className="text-lg font-semibold mb-4">Daily Targets</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="p-4 border rounded-lg text-center">
-                        <p className="text-2xl font-bold text-blue-600">{mockDietPlan.calorieTarget}</p>
+                        <p className="text-2xl font-bold text-blue-600">{dietPlan.calorieTarget}</p>
                         <p className="text-sm text-gray-600">Calories</p>
                       </div>
                       <div className="p-4 border rounded-lg text-center">
-                        <p className="text-2xl font-bold text-green-600">{mockDietPlan.proteinTarget}g</p>
+                        <p className="text-2xl font-bold text-green-600">{dietPlan.proteinTarget}g</p>
                         <p className="text-sm text-gray-600">Protein</p>
                       </div>
                       <div className="p-4 border rounded-lg text-center">
-                        <p className="text-2xl font-bold text-orange-600">{mockDietPlan.carbTarget}g</p>
+                        <p className="text-2xl font-bold text-orange-600">{dietPlan.carbTarget}g</p>
                         <p className="text-sm text-gray-600">Carbs</p>
                       </div>
                       <div className="p-4 border rounded-lg text-center">
-                        <p className="text-2xl font-bold text-purple-600">{mockDietPlan.fatTarget}g</p>
+                        <p className="text-2xl font-bold text-purple-600">{dietPlan.fatTarget}g</p>
                         <p className="text-sm text-gray-600">Fat</p>
                       </div>
                     </div>
@@ -380,7 +373,7 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
                   <div>
                     <h4 className="text-lg font-semibold mb-4">Sample Meals</h4>
                     <div className="space-y-4">
-                      {mockDietPlan.mealPlan.map((meal) => (
+                      {dietPlan.mealPlan.map((meal) => (
                         <div key={meal.id} className="border rounded-lg p-4">
                           <div className="flex justify-between items-center mb-3">
                             <h5 className="font-semibold">{meal.mealType}</h5>
@@ -403,11 +396,11 @@ export default function MemberPortal({ memberId }: MemberPortalProps) {
                   </div>
 
                   {/* Dietary Restrictions */}
-                  {mockDietPlan.dietaryRestrictions.length > 0 && (
+                  {dietPlan.dietaryRestrictions.length > 0 && (
                     <div>
                       <h4 className="text-lg font-semibold mb-4">Dietary Considerations</h4>
                       <div className="flex flex-wrap gap-2">
-                        {mockDietPlan.dietaryRestrictions.map((restriction, index) => (
+                        {dietPlan.dietaryRestrictions.map((restriction, index) => (
                           <Badge key={index} variant="outline">{restriction}</Badge>
                         ))}
                       </div>

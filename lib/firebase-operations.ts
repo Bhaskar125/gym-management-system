@@ -135,6 +135,29 @@ export const memberOperations = {
     })
     return unsubscribe
   },
+
+  // Authenticate member by email and password
+  async authenticate(email: string, password: string): Promise<Member | null> {
+    try {
+      const querySnapshot = await getDocs(collection(db, COLLECTIONS.MEMBERS))
+      const members = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Member[]
+
+      // Find member with matching email and password
+      const member = members.find(m => 
+        m.email.toLowerCase() === email.toLowerCase() && 
+        m.password === password &&
+        m.active === true
+      )
+
+      return member || null
+    } catch (error) {
+      console.error('Error authenticating member:', error)
+      throw error
+    }
+  },
 }
 
 // Bill Operations
